@@ -1,0 +1,54 @@
+---
+#
+# Make sure that vagrant is up and create the inventory
+#
+
+- name: Create machines and build dynamic inventory
+  hosts: localhost
+  become: no 
+  tasks: 
+  - name: Make sure that networks are defined 
+    virt_net:
+      name: "{{item}}"
+      xml: '{{ lookup("file", "{{playbook_dir}}/{{item}}-network.xml") }}'
+      state: present
+    loop:
+    - kafka-private
+
+  - name: Start networks
+    virt_net:
+      name: "{{item}}"
+      state: active
+    loop:
+    - kafka-private
+
+  - name: Run Vagrant 
+    shell: |
+      vagrant up
+
+  - name: Get public IP addresses 
+    shell: |
+      virsh domifaddr kafka_broker{{item}} | grep "ipv4" | awk '{ print $4 }' | sed 's/\/24//'
+    loop: "{{ range(1, 4) | list }}"
+    register: 
+      ip_addresses 
+
+  - name: Build dynamic inventory 
+    add_host:
+      name: "broker{{item.item}}"
+      groups: ["brokers","zookeeper_nodes"]
+      ansible_ssh_host: "{{item.stdout}}"
+      ansible_ssh_user: "vagrant"
+      ansible_ssh_private_key_file: "{{playbook_dir}}/.vagrant/machines/broker{{item.item}}/libvirt/private_key"
+      mgmt_ip: "10.100.0.1{{item.item}}"
+      broker_id: "{{item.item}}"
+    loop: "{{ip_addresses.results}}"
+    loop_control:
+      label: "broker{{item.item}}"
+
+- name: Wait until all machines are up
+  hosts: all
+  become: yes
+  tasks:
+    - name: Ping machines
+      ping:

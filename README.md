@@ -20,14 +20,12 @@ pip3 install ansible
 vagrant plugin install vagrant-libvirt
 ```
 
-Next, you will have to create a libvirt network that our virtual machines will use. Navigate to the directory where this README is located and run
+Now you can start the installation simply by running
 
 ```
-virsh net-define kafka-private-network.xml
-virsh net-start kafka-private-network
+ansible-playbook site.yaml
 ```
 
-The network uses the range 10.100.0.0/24 by default. If there is already a virtual network running on your machine using this range, you need to change this here, in the Vagrantfile and in the hosts.ini file.
 
 
 
