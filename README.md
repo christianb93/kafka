@@ -80,5 +80,46 @@ on any of the broker nodes. You should get a list with the broker ids of the clu
 
 This will create a topic called test with two partitions and a replication factor of three, i.e. each broker node will hold a copy of the log. When this command completes, you can check that corresponding directories (one for each partition) have been created in */tmp/kafka-logs* on every node.
 
+Let us now try to write a message into this topic. Again, we run this on the broker:
 
+```
+/opt/kafka/kafka_2.13-2.4.1/bin/kafka-console-producer.sh \
+  --broker-list broker1:9092 \
+  --topic test
+/opt/kafka/kafka_2.13-2.4.1/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --from-beginning --topic my-replicated-topic
+```
 
+Enter some text and hit Ctrl-D. Then, on some other node, run
+
+```
+/opt/kafka/kafka_2.13-2.4.1/bin/kafka-console-consumer.sh \
+  --bootstrap-server broker1:9092 \
+  --from-beginning \
+  --topic test
+```
+
+You should now see what you typed.
+
+# Securing Kafka broker via TLS
+
+In our setup, each Kafka broker will listen on the private interface with a PLAINTEXT listener, i.e. an unsecured listener. Of course, we can also add an additional listener on the public interface, so that we can reach the Kafka broker from a public network (in our setup using KVM, the "public" network is of course technically also just a local Linux bridge, but in a cloud setup, this will be different). To achieve this, we need to 
+
+* create a public / private key pair for each broker
+* create a certificate for each broker and sign it
+* create keystore for the broker, holding the signed certificate and the keys
+* create a truststore for the client, containing the CA used to sign the server certificate
+* create a properties file for the client containing the TLS configuration
+
+Once this has been done, you can now run the consumer locally and connect via the SSL listener on the public interface (assuming that you have the Kafka tools in your path).
+
+```
+ip=$(virsh domifaddr kafka_broker1 \
+  | grep "ipv4" \
+  | awk '{ print $4 }' \
+  | sed 's/\/24//')
+kafka-console-consumer.sh   \
+  --bootstrap-server $ip:9093   \
+  --from-beginning \
+  --consumer.config .state/client_ssl_config.properties \
+  --topic test 
+```

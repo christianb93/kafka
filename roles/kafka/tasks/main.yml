@@ -24,6 +24,16 @@
     owner: root 
     group: root
 
+- name: Create directory to hold PKI data
+  file:
+    path: "/opt/kafka/kafka_2.13-2.4.1/pki"
+    state: directory
+
+- name: Copy server keystore 
+  copy:
+    src: "{{playbook_dir}}/.state/certs/broker{{broker_id}}.p12"
+    dest: "/opt/kafka/kafka_2.13-2.4.1/pki/server.keystore.p12"
+
 - name: Create systemd unit file
   template:
     src: kafka.service.j2

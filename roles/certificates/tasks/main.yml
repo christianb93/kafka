@@ -1,0 +1,101 @@
+---
+- name: Make sure that certificate directory exists
+  file:
+    path: "{{playbook_dir}}/.state/{{item}}"
+    state: directory
+  loop:
+    - ca 
+    - certs 
+  
+- name: Generate OpenSSL keys for CA 
+  openssl_privatekey:
+    path: "{{playbook_dir}}/.state/{{item}}.rsa"
+    size: 2048
+  loop:
+    - ca/ca
+
+- name: Generate OpenSSL keys for brokers
+  openssl_privatekey:
+    path: "{{playbook_dir}}/.state/certs/{{item}}.rsa"
+    size: 2048
+  loop:
+    "{{groups['brokers']}}"
+
+- name: Generate CA certificate signing request
+  openssl_csr:
+    path: "{{item.path}}.csr"    
+    privatekey_path: "{{item.path}}.rsa"
+    common_name: "{{item.cn}}"
+    key_usage:
+        - digitalSignature
+        - keyCertSign 
+        - cRLSign
+    key_usage_critical: yes
+    basic_constraints: 
+        - CA:TRUE
+    basic_constraints_critical: yes
+    use_common_name_for_san: false
+  loop:
+    - cn: "Kafka CA"
+      path: "{{playbook_dir}}/.state/ca/ca"
+  loop_control:
+    label: "{{ item.cn }}"
+
+
+- name: Generate self-signed CA certificates 
+  openssl_certificate:
+    path: "{{item.path}}.crt"    
+    privatekey_path: "{{item.path}}.rsa"
+    csr_path: "{{item.path}}.csr"
+    provider: selfsigned
+  loop:
+    - cn: "OpenStack CA"
+      path: "{{playbook_dir}}/.state/ca/ca"
+  loop_control:
+    label: "{{ item.cn }}"
+
+- name: Create certificate signing requests for brokers
+  openssl_csr:
+    path: "{{playbook_dir}}/.state/certs/{{item}}.csr"    
+    privatekey_path: "{{playbook_dir}}/.state/certs/{{item}}.rsa"    
+    common_name: "{{item}}"
+    basic_constraints: "CA:FALSE"
+    basic_constraints_critical: true
+    useCommonNameForSAN: false
+    subject_alt_name: 
+      - IP:{{hostvars[item].mgmt_ip}}
+      - IP:{{hostvars[item].ansible_ssh_host}}
+      - DNS:{{item}}
+  loop:
+    "{{groups['brokers']}}"  
+    
+- name: Sign CSRs for broker 
+  openssl_certificate:
+    path: "{{playbook_dir}}/.state/certs/{{item}}.crt"    
+    csr_path: "{{playbook_dir}}/.state/certs/{{item}}.csr"
+    provider: ownca
+    ownca_path: "{{playbook_dir}}/.state/ca/ca.crt"
+    ownca_privatekey_path: "{{playbook_dir}}/.state/ca/ca.rsa"
+  loop:
+    "{{groups['brokers']}}"  
+
+- name: Create keystores for broker 
+  openssl_pkcs12:
+    action: export
+    path: "{{playbook_dir}}/.state/certs/{{item}}.p12"
+    friendly_name: "{{item}}"
+    privatekey_path: "{{playbook_dir}}/.state/certs/{{item}}.rsa"
+    certificate_path: "{{playbook_dir}}/.state/certs/{{item}}.crt"
+    state: present
+  loop:
+    "{{groups['brokers']}}"  
+
+- name: Create truststore for clients 
+  shell: |
+    rm -f {{playbook_dir}}/.state/certs/client.truststore.jks
+    keytool -keystore {{playbook_dir}}/.state/certs/client.truststore.jks  -noprompt -alias CARoot -storepass kafka123 -import -file {{playbook_dir}}/.state/ca/ca.crt
+
+- name: Create SSL configuration file for clients
+  template:
+    src: client_ssl_config.properties.j2
+    dest: "{{playbook_dir}}/.state/client_ssl_config.properties"

@@ -9,6 +9,11 @@
   roles:
     - create_inventory
 
+- name: Create certificates 
+  hosts: localhost 
+  become: no
+  roles:
+    - certificates
 
 - name: Wait until all machines are up
   hosts: all
