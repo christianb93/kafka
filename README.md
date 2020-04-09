@@ -134,4 +134,12 @@ kafka/bin/kafka-console-consumer.sh   \
   --topic test 
 ```
 
+# Using the Python client
+
+To be able to use the Python Kafka client, you will have to install the required packages on your local PC. Assuming that you have a working Python3 installation including pip3, simply run
+
+```
+pip3 install kafka-python
+```
+
 

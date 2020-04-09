@@ -1,0 +1,3 @@
+{% for broker in groups['brokers'] %}
+{{broker}}={{hostvars[broker].ansible_ssh_host}}
+{% endfor %}}

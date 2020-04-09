@@ -38,3 +38,8 @@
   loop: "{{ip_addresses.results}}"
   loop_control:
     label: "broker{{item.item}}"
+
+- name: Create file with public IPs
+  template:
+    src: broker.ips.j2
+    dest: "{{playbook_dir}}/.state/broker.ips"
