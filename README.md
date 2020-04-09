@@ -86,7 +86,6 @@ Let us now try to write a message into this topic. Again, we run this on the bro
 /opt/kafka/kafka_2.13-2.4.1/bin/kafka-console-producer.sh \
   --broker-list broker1:9092 \
   --topic test
-/opt/kafka/kafka_2.13-2.4.1/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --from-beginning --topic my-replicated-topic
 ```
 
 Enter some text and hit Ctrl-D. Then, on some other node, run
@@ -108,6 +107,7 @@ In our setup, each Kafka broker will listen on the private interface with a PLAI
 * create a certificate for each broker and sign it
 * create keystore for the broker, holding the signed certificate and the keys
 * create a truststore for the client, containing the CA used to sign the server certificate
+* create a key pair and certificate for the client, bundle this in a keystore and make it available to the client
 * create a properties file for the client containing the TLS configuration
 
 Once this has been done, you can now run the consumer locally and connect via the SSL listener on the public interface (assuming that you have the Kafka tools in your path).
@@ -123,3 +123,5 @@ kafka-console-consumer.sh   \
   --consumer.config .state/client_ssl_config.properties \
   --topic test 
 ```
+
+

@@ -140,4 +140,7 @@ group.initial.rebalance.delay.ms=0
 
 ssl.keystore.location=/opt/kafka/kafka_2.13-2.4.1/pki/server.keystore.p12
 ssl.keystore.password=
-
+ssl.keystore.type=PKCS12
+ssl.truststore.location=/opt/kafka/kafka_2.13-2.4.1/pki/truststore.jks
+ssl.truststore.password=kafka123
+ssl.client.auth=required

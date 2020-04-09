@@ -1,3 +1,7 @@
 security.protocol=SSL
-ssl.truststore.location={{playbook_dir}}/.state/certs/client.truststore.jks
+ssl.truststore.location={{playbook_dir}}/.state/certs/truststore.jks
 ssl.truststore.password=kafka123
+ssl.keystore.location={{playbook_dir}}/.state/certs/client.keystore.jks
+ssl.keystore.password=kafka123
+ssl.enabled.protocols=TLSv1
+

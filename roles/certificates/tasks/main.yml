@@ -7,12 +7,13 @@
     - ca 
     - certs 
   
-- name: Generate OpenSSL keys for CA 
+- name: Generate OpenSSL keys for CA and clients
   openssl_privatekey:
     path: "{{playbook_dir}}/.state/{{item}}.rsa"
     size: 2048
   loop:
     - ca/ca
+    - certs/client
 
 - name: Generate OpenSSL keys for brokers
   openssl_privatekey:
@@ -79,6 +80,29 @@
   loop:
     "{{groups['brokers']}}"  
 
+- name: Create certificate signing request for clients 
+  openssl_csr:
+    path: "{{playbook_dir}}/.state/certs/client.csr"    
+    privatekey_path: "{{playbook_dir}}/.state/certs/client.rsa"    
+    common_name: "client"
+    organization_name: "leftasexercise.org"
+    basic_constraints: "CA:FALSE"
+    basic_constraints_critical: true
+    extended_key_usage: "clientAuth"
+    key_usage: 
+      - digitalSignature
+      - keyEncipherment
+    useCommonNameForSAN: false
+
+- name: Sign CSRs for client
+  openssl_certificate:
+    path: "{{playbook_dir}}/.state/certs/client.crt"    
+    csr_path: "{{playbook_dir}}/.state/certs/client.csr"
+    provider: ownca
+    ownca_path: "{{playbook_dir}}/.state/ca/ca.crt"
+    ownca_privatekey_path: "{{playbook_dir}}/.state/ca/ca.rsa"
+
+
 - name: Create keystores for broker 
   openssl_pkcs12:
     action: export
@@ -90,10 +114,37 @@
   loop:
     "{{groups['brokers']}}"  
 
-- name: Create truststore for clients 
+- name: Create keystore for client
+  openssl_pkcs12:
+    action: export
+    path: "{{playbook_dir}}/.state/certs/client.keystore.p12"
+    friendly_name: "client"
+    privatekey_path: "{{playbook_dir}}/.state/certs/client.rsa"
+    certificate_path: "{{playbook_dir}}/.state/certs/client.crt"
+    passphrase: "kafka123"
+    state: present
+
+
+- name: Convert keystore to JKS format
   shell: |
-    rm -f {{playbook_dir}}/.state/certs/client.truststore.jks
-    keytool -keystore {{playbook_dir}}/.state/certs/client.truststore.jks  -noprompt -alias CARoot -storepass kafka123 -import -file {{playbook_dir}}/.state/ca/ca.crt
+    rm -f {{playbook_dir}}/.state/certs/client.keystore.jks
+    keytool -importkeystore \
+      -srckeystore {{playbook_dir}}/.state/certs/client.keystore.p12 \
+      -destkeystore {{playbook_dir}}/.state/certs/client.keystore.jks \
+      -srcstoretype pkcs12 \
+      -deststoretype jks \
+      -srcstorepass kafka123  \
+      -deststorepass kafka123
+
+- name: Create truststore (will be used by clients and broker)
+  shell: |
+    rm -f {{playbook_dir}}/.state/certs/truststore.jks
+    keytool -keystore {{playbook_dir}}/.state/certs/truststore.jks  \
+            -noprompt \
+            -alias CARoot \
+            -storepass kafka123 \
+            -import \
+            -file {{playbook_dir}}/.state/ca/ca.crt
 
 - name: Create SSL configuration file for clients
   template:
