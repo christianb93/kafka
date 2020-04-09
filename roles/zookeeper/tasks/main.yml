@@ -36,5 +36,5 @@
   service:
     name: zookeeper 
     enabled: yes 
-    state: started
+    state: restarted
 

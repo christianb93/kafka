@@ -18,6 +18,6 @@ clientPort=2181
 # The fist port is used by followers to connect to the leader
 # The second one is used for leader election
 {% for server in groups['zookeeper_nodes'] %}
-server.{{hostvars[server].zookeeper_id}}={{hostvars[server].mgmt_ip}}:2888:3888
+server.{{hostvars[server].zookeeper_id}}={{hostvars[server].private_hostname}}:2888:3888
 {% endfor %}
 

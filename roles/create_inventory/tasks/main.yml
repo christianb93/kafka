@@ -34,6 +34,7 @@
     mgmt_ip: "10.100.0.1{{item.item}}"
     broker_id: "{{item.item}}"
     zookeeper_id: "{{item.item}}"
+    private_hostname: "broker{{item.item}}"
   loop: "{{ip_addresses.results}}"
   loop_control:
     label: "broker{{item.item}}"

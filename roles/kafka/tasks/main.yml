@@ -1,0 +1,39 @@
+---
+- name: Download archive 
+  get_url:
+    url: "{{kafka_download_url}}"
+    checksum: "{{kafka_md5_sum}}"
+    dest: "/home/vagrant/kafka_2.13-2.4.1.tgz"
+
+- name: Make sure that /opt/kafka exists 
+  file:
+    path: "/opt/kafka"
+    state: directory
+
+- name: Extract archive 
+  unarchive:
+    remote_src: yes 
+    dest: /opt/kafka
+    src: "/home/vagrant/kafka_2.13-2.4.1.tgz"
+
+- name: Update configuration 
+  template:
+    src: server.properties.j2
+    dest: /opt/kafka/kafka_2.13-2.4.1/config/server.properties
+    mode: 0644
+    owner: root 
+    group: root
+
+- name: Create systemd unit file
+  template:
+    src: kafka.service.j2
+    dest: /lib/systemd/system/kafka.service
+    mode: 0644
+    owner: root 
+    group: root
+  
+- name: Start Kafka 
+  service:
+    daemon_reload: yes 
+    name: kafka 
+    state: restarted 

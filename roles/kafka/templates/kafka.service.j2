@@ -1,0 +1,15 @@
+[Unit]
+Description=Apache Kafka server (broker)
+Documentation=http://kafka.apache.org/documentation.html
+Requires=network.target remote-fs.target
+After=network.target remote-fs.target 
+
+[Service]
+Environment=JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+ExecStart=/opt/kafka/kafka_2.13-2.4.1/bin/kafka-server-start.sh /opt/kafka/kafka_2.13-2.4.1/config/server.properties
+ExecStop=/opt/kafka/kafka_2.13-2.4.1/bin/kafka-server-stop.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

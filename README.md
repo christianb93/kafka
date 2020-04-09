@@ -50,8 +50,35 @@ for i in {1..3}; do
 done
 ```
 
+On each node, we should be able to reach each other node via its hostname on port 2181, i.e. on each node, you should be able to run
+
+```
+for i in {1..3}; do
+    echo srvr | nc broker$i 2181
+done
+```
+
+with the same results.  
 
 
+Now let us see whether Kafka is running on each node. First, of course, you should check the status using `systemctl status kafka`. Then, we can see whether all brokers have registered themselves with ZooKeeper. To do this, run
+
+```
+sudo /usr/share/zookeeper/bin/zkCli.sh -server broker1:2181 ls /brokers/ids
+```
+
+on any of the broker nodes. You should get a list with the broker ids of the cluster, i.e. usually `[1,2,3]`. Next, log into one of the brokers and try to create a topic.
+
+```
+/opt/kafka/kafka_2.13-2.4.1/bin/kafka-topics.sh \
+  --create \
+  --bootstrap-server broker1:9092 \
+  --replication-factor 3 \
+  --partitions 2 \
+  --topic test
+```
+
+This will create a topic called test with two partitions and a replication factor of three, i.e. each broker node will hold a copy of the log. When this command completes, you can check that corresponding directories (one for each partition) have been created in */tmp/kafka-logs* on every node.
 
 
 

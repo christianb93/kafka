@@ -17,8 +17,21 @@
     - name: Ping machines
       ping:
 
+
+- name: Set up nodes
+  hosts: all 
+  become: yes 
+  roles: 
+    - node_setup
+
 - name: Install ZooKeeper
   hosts: zookeeper_nodes
   become: yes
   roles:
     - zookeeper
+
+- name: Install Kafka 
+  hosts: brokers
+  become: yes 
+  roles:
+    - kafka
