@@ -33,6 +33,7 @@
     ansible_ssh_private_key_file: "{{playbook_dir}}/.vagrant/machines/broker{{item.item}}/libvirt/private_key"
     mgmt_ip: "10.100.0.1{{item.item}}"
     broker_id: "{{item.item}}"
+    zookeeper_id: "{{item.item}}"
   loop: "{{ip_addresses.results}}"
   loop_control:
     label: "broker{{item.item}}"

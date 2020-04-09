@@ -16,3 +16,9 @@
   tasks:
     - name: Ping machines
       ping:
+
+- name: Install ZooKeeper
+  hosts: zookeeper_nodes
+  become: yes
+  roles:
+    - zookeeper

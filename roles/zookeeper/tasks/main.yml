@@ -1,0 +1,40 @@
+---
+- name: Install ZooKeeper package
+  apt:
+    force_apt_get: yes
+    update_cache: yes
+    policy_rc_d: 101
+    name: zookeeper
+    state: latest
+
+- name: Update configuration file
+  template:
+    src: zoo.cfg.j2
+    dest: /etc/zookeeper/conf/zoo.cfg
+    mode: 0644
+    owner: root
+    group: root
+
+- name: Write myid file 
+  template:
+    src: myid.j2
+    dest: /etc/zookeeper/conf/myid 
+    mode: 0644
+    owner: root
+    group: root
+
+- name: Write systemd unit file
+  template:
+    src: zookeeper.service.j2
+    dest: /lib/systemd/system/zookeeper.service
+    mode: 0644
+    owner: root
+    group: root
+
+
+- name: Start ZooKeeper 
+  service:
+    name: zookeeper 
+    enabled: yes 
+    state: started
+

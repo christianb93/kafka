@@ -1,0 +1,23 @@
+# http://hadoop.apache.org/zookeeper/docs/current/zookeeperAdmin.html
+
+# The number of milliseconds of each tick
+tickTime=2000
+# The number of ticks that the initial 
+# synchronization phase can take
+initLimit=10
+# The number of ticks that can pass between 
+# sending a request and getting an acknowledgement
+syncLimit=5
+# the directory where the snapshot is stored.
+dataDir=/var/lib/zookeeper
+
+# the port at which the clients will connect
+clientPort=2181
+
+# specify all zookeeper servers
+# The fist port is used by followers to connect to the leader
+# The second one is used for leader election
+{% for server in groups['zookeeper_nodes'] %}
+server.{{hostvars[server].zookeeper_id}}={{hostvars[server].mgmt_ip}}:2888:3888
+{% endfor %}
+
