@@ -22,7 +22,6 @@
     - name: Ping machines
       ping:
 
-
 - name: Set up nodes
   hosts: all 
   become: yes 
@@ -37,6 +36,8 @@
 
 - name: Install Kafka 
   hosts: brokers
-  become: yes 
+  become: yes
+  vars:
+    kafka_download_url: "file:///vagrant/kafka_2.13-2.4.1.tgz" 
   roles:
     - kafka

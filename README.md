@@ -20,11 +20,21 @@ pip3 install ansible
 vagrant plugin install vagrant-libvirt
 ```
 
+You also need to download the Kafka distribution to your local machine and unzip it there - first, to have a test client locally, and second because we use a Vagrant-synced folder to replicate this archive into the virtual machines, in order not to download it once for every broker
+
+```
+wget http://mirror.cc.columbia.edu/pub/software/apache/kafka/2.4.1/kafka_2.13-2.4.1.tgz
+tar xvf kafka_2.13-2.4.1.tgz
+mv kafka_2.13-2.4.1 kafka
+```
+
 Now you can start the installation simply by running
 
 ```
 ansible-playbook site.yaml
 ```
+
+Note that we map the local working directory
 
 Once the installation completes, it is time to run a few checks. First, let us verify that the ZooKeeper is running correctly on each node. For that purpose, SSH into the first node using `vagrant ssh broker1` and run
 
@@ -110,14 +120,14 @@ In our setup, each Kafka broker will listen on the private interface with a PLAI
 * create a key pair and certificate for the client, bundle this in a keystore and make it available to the client
 * create a properties file for the client containing the TLS configuration
 
-Once this has been done, you can now run the consumer locally and connect via the SSL listener on the public interface (assuming that you have the Kafka tools in your path).
+Once this has been done, you can now run the consumer locally and connect via the SSL listener on the public interface:
 
 ```
 ip=$(virsh domifaddr kafka_broker1 \
   | grep "ipv4" \
   | awk '{ print $4 }' \
   | sed 's/\/24//')
-kafka-console-consumer.sh   \
+kafka/bin/kafka-console-consumer.sh   \
   --bootstrap-server $ip:9093   \
   --from-beginning \
   --consumer.config .state/client_ssl_config.properties \

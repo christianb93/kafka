@@ -1,0 +1,4 @@
+kafka_2.13-2.4.1*
+.state
+.vagrant
+kafka

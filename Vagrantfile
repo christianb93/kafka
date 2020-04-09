@@ -14,6 +14,7 @@ Vagrant.configure("2") do |config|
         config.vm.define "broker#{i}" do |node|
             node.vm.hostname = "broker#{i}"
             node.vm.box = "generic/ubuntu1904"
+            node.vm.synced_folder './', '/vagrant'
             node.vm.network :private_network,
                 :ip => "10.100.0.1#{i}",
                 :libvirt__network_name => "kafka-private"
