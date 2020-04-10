@@ -51,5 +51,6 @@
 - name: Start Kafka 
   service:
     daemon_reload: yes 
-    name: kafka 
-    state: restarted 
+    name: kafka
+    state: restarted
+    enabled: yes
