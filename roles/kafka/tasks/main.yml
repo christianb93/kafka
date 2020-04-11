@@ -10,6 +10,12 @@
     path: "/opt/kafka"
     state: directory
 
+- name: Create file for logs
+  file:
+    path: "/opt/kafka/logs"
+    state: directory
+
+
 - name: Extract archive 
   unarchive:
     remote_src: yes 
