@@ -39,6 +39,11 @@
   loop_control:
     label: "broker{{item.item}}"
 
+- name: Make sure that state directory exists 
+  file:
+    path: "{{playbook_dir}}/.state"
+    state: directory
+
 - name: Create file with broker configuration 
   template:
     src: config.yaml.j2
