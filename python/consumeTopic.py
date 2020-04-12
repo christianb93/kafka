@@ -1,5 +1,17 @@
 import kafka
 import config
+import signal
+import sys
+
+def handle_signal(signal, frame):
+    print("Received SIGINT, closing consumer and exiting")
+    try: 
+        consumer.close(autocommit=False)
+    except: 
+        print("Received exception",sys.exc_info())
+    exit(0)
+
+signal.signal(signal.SIGINT, handle_signal)
 
 
 config=config.Config()
