@@ -12,12 +12,15 @@ sudo apt-get install \
   libvirt-daemon \
   libvirt-clients \
   virt-manager \
+  python3-pip \
   python3-libvirt \
-  vagrant
+  vagrant \
+  vagrant-libvirt \
+  git \
+  openjdk-8-jdk
 sudo adduser $(id -un) libvirt
 sudo adduser $(id -un) kvm
-pip3 install ansible
-vagrant plugin install vagrant-libvirt
+pip3 install ansible lxml pyopenssl
 ```
 
 You also need to download the Kafka distribution to your local machine and unzip it there - first, to have a test client locally, and second because we use a Vagrant-synced folder to replicate this archive into the virtual machines, in order not to download it once for every broker
@@ -31,10 +34,12 @@ mv kafka_2.13-2.4.1 kafka
 Now you can start the installation simply by running
 
 ```
+virsh net-define kafka-private-network.xml
+vagrant up
 ansible-playbook site.yaml
 ```
 
-Note that we map the local working directory
+Note that we map the local working directory into the virtual machine, so that the installation can use the already downloaded Kafka tarball. This synchronization is done using rsync and apparently only once, so it is important that the downloaded tarball is in place **before** you run the playbook. 
 
 Once the installation completes, it is time to run a few checks. First, let us verify that the ZooKeeper is running correctly on each node. For that purpose, SSH into the first node using `vagrant ssh broker1` and run
 
