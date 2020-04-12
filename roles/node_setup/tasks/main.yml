@@ -6,3 +6,12 @@
     owner: root
     group: root
     mode: 0644
+
+- name: Set up device ens6 with private IP address
+  template:
+    src: 98-mgmt-network.j2
+    dest: /etc/network/interfaces.d/98-mgmt-network
+
+- name: Initially bring up interface 
+  shell: |
+    /sbin/ifup -a

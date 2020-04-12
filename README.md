@@ -142,4 +142,4 @@ To be able to use the Python Kafka client, you will have to install the required
 pip3 install kafka-python
 ```
 
-
+on your lab PC. 
