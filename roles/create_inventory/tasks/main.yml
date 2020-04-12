@@ -39,7 +39,7 @@
   loop_control:
     label: "broker{{item.item}}"
 
-- name: Create file with public IPs
+- name: Create file with broker configuration 
   template:
-    src: broker.ips.j2
-    dest: "{{playbook_dir}}/.state/broker.ips"
+    src: config.yaml.j2
+    dest: "{{playbook_dir}}/.state/config.yaml"

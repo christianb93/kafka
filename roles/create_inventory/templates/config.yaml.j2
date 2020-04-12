@@ -1,0 +1,10 @@
+brokers:
+{% for broker in groups['brokers'] %}
+    - name: {{broker}}
+      ip: {{hostvars[broker].ansible_ssh_host}}
+      port: "9093"
+{% endfor %}
+ssl_config:
+      ssl_cafile: {{playbook_dir}}/.state/ca/ca.crt
+      ssl_certfile: {{playbook_dir}}/.state/certs/client.crt
+      ssl_keyfile: {{playbook_dir}}/.state/certs/client.rsa
