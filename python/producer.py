@@ -47,7 +47,7 @@ def create_producer_config(args):
     #
     # Get basic configuration from YAML file
     #
-    producer_config=config.Config(args.config).get_producer_config()
+    producer_config=config.Config(args.config).get_producer_consumer_config()
     #
     # Set serializer
     #

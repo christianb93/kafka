@@ -42,10 +42,11 @@ class  Config:
         return self._config['ssl_config']
 
 
-    def get_producer_config(self):
-        producer_config=dict()
+    def get_producer_consumer_config(self):
+        config=dict()
         broker_url=self.get_bootstrap_broker_url()
-        producer_config['bootstrap_servers']=broker_url
-        producer_config['security_protocol']="SSL"
-        producer_config.update(self.get_ssl_config())
-        return producer_config
+        config['bootstrap_servers']=broker_url
+        config['security_protocol']="SSL"
+        config.update(self.get_ssl_config())
+        return config
+
