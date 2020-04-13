@@ -128,14 +128,10 @@ In our setup, each Kafka broker will listen on the private interface with a PLAI
 Once this has been done, you can now run the consumer locally and connect via the SSL listener on the public interface:
 
 ```
-ip=$(virsh domifaddr kafka_broker1 \
-  | grep "ipv4" \
-  | awk '{ print $4 }' \
-  | sed 's/\/24//')
 kafka/bin/kafka-console-consumer.sh   \
-  --bootstrap-server $ip:9093   \
-  --from-beginning \
+  --bootstrap-server $(./python/getBrokerURL.py)   \
   --consumer.config .state/client_ssl_config.properties \
+  --from-beginning \
   --topic test 
 ```
 
