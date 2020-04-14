@@ -16,11 +16,19 @@ GROUP_ID="test-group"
 #
 class MyConsumerRebalanceListener(kafka.ConsumerRebalanceListener):
 
+    def __init__(self, reset, consumer):
+        self._reset = reset
+        self._consumer = consumer
+
     def on_partitions_revoked(self, revoked):
         print("Partitions %s revoked" % revoked)
 
     def on_partitions_assigned(self, assigned):
         print("Partitions %s assigned" % assigned)
+        if self._reset:
+            print("Resetting offsets for assigned partitions")
+            self._consumer.seek_to_beginning()
+
 
 # 
 # Get arguments
@@ -30,6 +38,10 @@ def get_args():
     parser.add_argument("--config", 
                     type=str,
                     help="Location of a configuration file in YAML format")
+    parser.add_argument("--reset", 
+                    type=bool,
+                    default=False,
+                    help="Reset offset upon partition reassignment")
     args=parser.parse_args()
     return args
 
@@ -89,8 +101,9 @@ def main():
                          **consumer_config)
 
     # Subscrice 
+    myConsumerRebalanceListener=MyConsumerRebalanceListener(args.reset, consumer)
     consumer.subscribe(TOPIC, 
-          listener=MyConsumerRebalanceListener())
+          listener=myConsumerRebalanceListener)
     print("%s" % consumer.assignment())
     #
     # Read from topic
