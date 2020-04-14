@@ -6,8 +6,21 @@ import argparse
 import yaml
 import json
 
+
 TOPIC="test"
 GROUP_ID="test-group"
+
+
+#
+# A custom rebalance listener
+#
+class MyConsumerRebalanceListener(kafka.ConsumerRebalanceListener):
+
+    def on_partitions_revoked(self, revoked):
+        print("Partitions %s revoked" % revoked)
+
+    def on_partitions_assigned(self, assigned):
+        print("Partitions %s assigned" % assigned)
 
 # 
 # Get arguments
@@ -32,8 +45,6 @@ def create_consumer_config(args):
     consumer_config['value_deserializer'] = deserialize
     consumer_config['consumer_timeout_ms'] = 1000
     return consumer_config
-
-
 
 
 def deserialize(data):
@@ -74,22 +85,27 @@ def main():
     # Create consumer
     #
     consumer = kafka.KafkaConsumer(TOPIC,
-                         group_id=GROUP_ID,
-                         
+                         group_id=GROUP_ID,      
                          **consumer_config)
 
     # Subscrice 
-    consumer.subscribe(TOPIC)
+    consumer.subscribe(TOPIC, 
+          listener=MyConsumerRebalanceListener())
+    print("%s" % consumer.assignment())
+    #
+    # Read from topic
+    #
+    print("Starting polling loop")
     while not stop:
         #
         # Note that returns after consumer_timeout_ms if there is no more data 
         # so that we check the stop flag
         #
         for message in consumer:
-            # message value and key are raw bytes -- decode if necessary!
-            # e.g., for unicode: `message.value.decode('utf-8')`
-            print ("%s:%d:%d: key=%s value=%s" % (message.topic, message.partition,
-                                                message.offset, message.key,
+            print ("Got message from partition %d at offset %d: key=%s value=%s" % 
+                                                (message.partition,
+                                                message.offset, 
+                                                message.key,
                                                 message.value))
 
     consumer.close()
