@@ -38,11 +38,24 @@ def get_args():
     parser.add_argument("--config", 
                     type=str,
                     help="Location of a configuration file in YAML format")
-    parser.add_argument("--reset", 
-                    type=bool,
+    parser.add_argument("--disable_auto_commit", 
+                    action="store_true",
                     default=False,
-                    help="Reset offset upon partition reassignment")
+                    help="Disable auto-commit")
+    parser.add_argument("--reset", 
+                    action="store_true",
+                    default=False,
+                    help="Disable auto-commit")
+    parser.add_argument("--no_commit", 
+                    action="store_true",
+                    default=False,
+                    help="No commit at all")
+    parser.add_argument("--max_poll_records", 
+                    type=int,
+                    default=1,
+                    help="Batch size when polling")
     args=parser.parse_args()
+    print("Args: %s" % args)
     return args
 
 
@@ -56,6 +69,11 @@ def create_consumer_config(args):
     #
     consumer_config['value_deserializer'] = deserialize
     consumer_config['consumer_timeout_ms'] = 1000
+    if args.disable_auto_commit or args.no_commit:
+        consumer_config['enable_auto_commit'] = False
+    else:
+        consumer_config['enable_auto_commit'] = False
+    consumer_config['max_poll_records'] = args.max_poll_records
     return consumer_config
 
 
@@ -81,7 +99,6 @@ def main():
         # Need nonlocal as we want to change the value of stop
         #
         nonlocal stop
-        print("Received SIGINT, setting stop flag")
         stop=1
 
     signal.signal(signal.SIGINT, handle_signal)
@@ -108,20 +125,23 @@ def main():
     #
     # Read from topic
     #
-    print("Starting polling loop")
-    while not stop:
-        #
-        # Note that returns after consumer_timeout_ms if there is no more data 
-        # so that we check the stop flag
-        #
-        for message in consumer:
-            print ("Got message from partition %d at offset %d: key=%s value=%s" % 
-                                                (message.partition,
-                                                message.offset, 
-                                                message.key,
-                                                message.value))
 
-    consumer.close()
+    print("Starting polling loop")
+    do_commit = (args.disable_auto_commit and not args.no_commit)
+    while not stop:
+        batch = consumer.poll()
+        if len(batch) > 0:
+            for tp in batch:
+                records = batch[tp]
+                for record in records:
+                    print ("Got key %s --> payload %s in record with offset %d, partition %d" % 
+                            (record.key, record.value, record.offset, record.partition))
+            if do_commit:
+                print("Committing batch")
+                consumer.commit()
+
+    
+    consumer.close(do_commit)
 
 
 main()
