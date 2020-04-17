@@ -29,6 +29,10 @@ class MyConsumerRebalanceListener(kafka.ConsumerRebalanceListener):
         print("Partitions %s assigned" % assigned)
         if self._reset:
             force_reset=1
+            print("Resetting offsets")
+            consumer.seek_to_beginning()
+            print("Done")
+
 # 
 # Get arguments
 #
@@ -149,8 +153,6 @@ def main():
     print_partitions(consumer)
 
     if force_reset:
-        print("Resetting offsets")
-        consumer.seek_to_beginning()
         print("Committing new offsets")
         consumer.commit()
         print("Done, printing new positions and offsets and exiting")
