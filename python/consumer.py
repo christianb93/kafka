@@ -147,7 +147,10 @@ def main():
     if args.delay > 0:
         time.sleep(args.delay)
    
-    consumer.poll(0)
+    batch = consumer.poll(0)
+
+    if len(batch) > 0:
+        raise Exception("Did not expect any data from first call to poll!")
 
     print("Currently assigned partitions: %s" % consumer.assignment())
     print_partitions(consumer)
