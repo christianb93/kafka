@@ -17,7 +17,7 @@ def get_args():
                     type=str,
                     help="Location of a configuration file in YAML format")
     parser.add_argument("--create_keys", 
-                    type=bool,
+                    action="store_true",
                     default=False,
                     help="Create a key when sending messages")                
     parser.add_argument("--messages", 
@@ -33,7 +33,7 @@ def get_args():
                     default=5,
                     help="Max in flight requests per connection")
     parser.add_argument("--wait",
-                    type=bool,
+                    action="store_true",
                     default=False,
                     help="Wait for reply before sending next record")
     args=parser.parse_args()

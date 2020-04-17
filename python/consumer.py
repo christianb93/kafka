@@ -5,11 +5,12 @@ import sys
 import argparse
 import yaml
 import json
+import time
 
 
 TOPIC="test"
 GROUP_ID="test-group"
-
+force_reset=0
 
 #
 # A custom rebalance listener
@@ -24,12 +25,10 @@ class MyConsumerRebalanceListener(kafka.ConsumerRebalanceListener):
         print("Partitions %s revoked" % revoked)
 
     def on_partitions_assigned(self, assigned):
+        global force_reset
         print("Partitions %s assigned" % assigned)
         if self._reset:
-            print("Resetting offsets for assigned partitions")
-            self._consumer.seek_to_beginning()
-
-
+            force_reset=1
 # 
 # Get arguments
 #
@@ -54,8 +53,11 @@ def get_args():
                     type=int,
                     default=1,
                     help="Batch size when polling")
+    parser.add_argument("--delay",
+                    type=int,
+                    default=0,
+                    help="Time to wait between any two steps")            
     args=parser.parse_args()
-    print("Args: %s" % args)
     return args
 
 
@@ -72,17 +74,27 @@ def create_consumer_config(args):
     if args.disable_auto_commit or args.no_commit:
         consumer_config['enable_auto_commit'] = False
     else:
-        consumer_config['enable_auto_commit'] = False
+        consumer_config['enable_auto_commit'] = True
     consumer_config['max_poll_records'] = args.max_poll_records
+    consumer_config['auto_offset_reset'] = "earliest"
     return consumer_config
 
 
 def deserialize(data):
     return json.loads(data.decode('utf-8'))
 
+def print_partitions(consumer):
+    for tp in consumer.assignment():
+        committed = consumer.committed(tp)
+        position = consumer.position(tp)
+        if committed:
+            print("Position / committed offsets for TopicPartition %s : %d / %d" % (tp, position,committed))
+        else:
+            print("Position / committed offsets for TopicPartition %s : %d / -" % (tp, position))
+
 
 def main():
-    
+    global force_reset    
     stop=0    
     #
     # Parse arguments
@@ -121,27 +133,49 @@ def main():
     myConsumerRebalanceListener=MyConsumerRebalanceListener(args.reset, consumer)
     consumer.subscribe(TOPIC, 
           listener=myConsumerRebalanceListener)
-    print("%s" % consumer.assignment())
+    print("Created subscription")
+
+
     #
-    # Read from topic
+    # Do initial poll to trigger reassignment
     #
 
+    if args.delay > 0:
+        time.sleep(args.delay)
+   
+    consumer.poll(0)
+
+    print("Currently assigned partitions: %s" % consumer.assignment())
+    print_partitions(consumer)
+
+    if force_reset:
+        print("Resetting offsets")
+        consumer.seek_to_beginning()
+        print("Committing new offsets")
+        consumer.commit()
+        print("Done, printing new positions and offsets and exiting")
+        print_partitions(consumer)
+        consumer.close()
+        exit(0)
+        
     print("Starting polling loop")
     do_commit = (args.disable_auto_commit and not args.no_commit)
     while not stop:
-        batch = consumer.poll()
+        if args.delay > 0:
+            time.sleep(args.delay)
+            print("Getting next batch of records")
+        batch = consumer.poll(500)
         if len(batch) > 0:
             for tp in batch:
                 records = batch[tp]
                 for record in records:
-                    print ("Got key %s --> payload %s in record with offset %d, partition %d" % 
-                            (record.key, record.value, record.offset, record.partition))
+                    print ("Offset %d, partition %d: key %s --> payload %s " % 
+                            (record.offset, record.partition, record.key, record.value))
             if do_commit:
-                print("Committing batch")
                 consumer.commit()
 
     
-    consumer.close(do_commit)
+    consumer.close()
 
 
 main()
