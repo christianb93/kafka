@@ -157,4 +157,17 @@ On the broker node, you can now verify that this works by running
   --files /opt/kafka/logs/test-0/00000000000000000000.log
 ```
 
-which will print the first segment of partition 0 of the test partition.
+which will print the first segment of partition 0 of the test partition. Finally, you can test our consumer by running
+
+```
+python3 python/consumer.py
+```
+
+The consumer has a few flags which are useful for testing.
+
+* *--no_commit* - do not commit any messages, neither manually nor automatically
+* *--disable_auto_commit* - disable automated commits and commit explictly after each batch of messages
+* *--reset* - do not read any messages, but seek all partitions of the test topic to the beginning and commit these offsets
+* *--max_poll_records* - number of records in a batch, default is one
+
+
