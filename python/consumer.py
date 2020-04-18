@@ -10,28 +10,26 @@ import time
 
 TOPIC="test"
 GROUP_ID="test-group"
-force_reset=0
+
 
 #
 # A custom rebalance listener
 #
 class MyConsumerRebalanceListener(kafka.ConsumerRebalanceListener):
 
-    def __init__(self, reset, consumer):
-        self._reset = reset
-        self._consumer = consumer
 
     def on_partitions_revoked(self, revoked):
         print("Partitions %s revoked" % revoked)
 
     def on_partitions_assigned(self, assigned):
-        global force_reset
         print("Partitions %s assigned" % assigned)
-        if self._reset:
-            force_reset=1
-            print("Resetting offsets")
-            consumer.seek_to_beginning()
-            print("Done")
+        #
+        # In case the reset flag is set, it is tempting to do the seek
+        # here. However, I have found that calling seek_to_beginning() on the
+        # consumer here does actually never return. I assume that this is due to
+        # some consumer methods not being reentrant, so we leave this to the 
+        # main thread
+        #
 
 # 
 # Get arguments
@@ -57,10 +55,6 @@ def get_args():
                     type=int,
                     default=1,
                     help="Batch size when polling")
-    parser.add_argument("--delay",
-                    type=int,
-                    default=0,
-                    help="Time to wait between any two steps")            
     args=parser.parse_args()
     return args
 
@@ -87,6 +81,7 @@ def create_consumer_config(args):
 def deserialize(data):
     return json.loads(data.decode('utf-8'))
 
+
 def print_partitions(consumer):
     for tp in consumer.assignment():
         committed = consumer.committed(tp)
@@ -98,7 +93,6 @@ def print_partitions(consumer):
 
 
 def main():
-    global force_reset    
     stop=0    
     #
     # Parse arguments
@@ -133,51 +127,60 @@ def main():
                          group_id=GROUP_ID,      
                          **consumer_config)
 
-    # Subscrice 
-    myConsumerRebalanceListener=MyConsumerRebalanceListener(args.reset, consumer)
+    # Create rebalance listener
+    listener=MyConsumerRebalanceListener()
+
+    #
+    # and subscribe
+    #
     consumer.subscribe(TOPIC, 
-          listener=myConsumerRebalanceListener)
-    print("Created subscription")
+          listener=listener)
 
 
     #
-    # Do initial poll to trigger reassignment
+    # Do initial poll to trigger reassignment. This should not return any
+    # data
     #
 
-    if args.delay > 0:
-        time.sleep(args.delay)
-   
-    batch = consumer.poll(0)
-
-    if len(batch) > 0:
+    if len(consumer.poll(0)) > 0:
         raise Exception("Did not expect any data from first call to poll!")
+
+    #
+    # If we have requested a reset only, commit 
+    # the new offsets and exit immediately
+    #
+    if args.reset:
+        for tp in consumer.assignment():
+            consumer.seek_to_beginning(tp)
+            #
+            # Apparently seek_to_beginning evaluates lazily, so we need
+            # to read positions at least once after doing this before committing
+            #
+            consumer.position(tp)
+
+        consumer.commit()
+        consumer.close(autocommit=False)
+        exit(0)
+        
 
     print("Currently assigned partitions: %s" % consumer.assignment())
     print_partitions(consumer)
 
-    if force_reset:
-        print("Committing new offsets")
-        consumer.commit()
-        print("Done, printing new positions and offsets and exiting")
-        print_partitions(consumer)
-        consumer.close()
-        exit(0)
-        
+
     print("Starting polling loop")
     do_commit = (args.disable_auto_commit and not args.no_commit)
     while not stop:
-        if args.delay > 0:
-            time.sleep(args.delay)
-            print("Getting next batch of records")
+        #
+        # Get next batch of records, waiting up to 500 ms for data
+        #
         batch = consumer.poll(500)
-        if len(batch) > 0:
-            for tp in batch:
-                records = batch[tp]
-                for record in records:
-                    print ("Offset %d, partition %d: key %s --> payload %s " % 
-                            (record.offset, record.partition, record.key, record.value))
-            if do_commit:
-                consumer.commit()
+        for tp in batch:
+            records = batch[tp]
+            for record in records:
+                print ("Offset %d, partition %d: key %s --> payload %s " % 
+                       (record.offset, record.partition, record.key, record.value))
+        if do_commit and  (len(batch) > 0):
+            consumer.commit()
 
     
     consumer.close()
