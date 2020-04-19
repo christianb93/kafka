@@ -5,6 +5,7 @@ import yaml
 import json
 import time
 import datetime
+import random
 
 import kafka
 import mysql.connector as dblib
@@ -58,6 +59,10 @@ def get_args():
                     type=int,
                     default=10,
                     help="Number of seconds to run")
+    parser.add_argument("--error_probability",
+                    type=float,
+                    default=0.0,
+                    help="Probability of simulated error")
     args=parser.parse_args()
     return args
 
@@ -72,8 +77,8 @@ def create_consumer_config(args):
     #
     consumer_config['value_deserializer'] = deserialize
     consumer_config['consumer_timeout_ms'] = 1000
-    consumer_config['enable_auto_commit'] = not args.no_commit
-    consumer_config['max_poll_records'] = 100
+    consumer_config['enable_auto_commit'] = False
+    consumer_config['max_poll_records'] = 5
     consumer_config['auto_offset_reset'] = "earliest"
     #
     # Make sure that the iterator interface of the consumer
@@ -144,7 +149,9 @@ def set_last_consumed(db, sequence_no, partition, commit):
     if commit:
         db.commit()
 
-
+#
+# Process an individual record
+#
 def process_record(db, args, record):
     account = int(record.key.decode('utf-8'))
     amount = record.value['amount']
@@ -160,7 +167,10 @@ def process_record(db, args, record):
     else:
         if args.verbose:
             print("Ignoring duplicate record!")
-
+    if args.error_probability > 0:
+        if random.random() < args.error_probability:
+            print("Simulating error")
+            raise Exception("Simulated error after committing to database")
 
 def main():
     stop=0    
@@ -219,6 +229,12 @@ def main():
             #
             if stop:
                 break
+        #
+        # Commit batch
+        #
+        if args.verbose:
+            print("Committing offsets") 
+        consumer.commit()
         #
         # Check to see whether we should stop
         #
