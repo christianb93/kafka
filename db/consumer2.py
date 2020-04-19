@@ -101,7 +101,8 @@ def create_db_connection(db_user, db_password, db_host, db_port=3306):
 
 
 #
-# A class to maintain offsets
+# A class to maintain offsets locally, i.e. as a cache,
+# and to synchronize the cache with the database
 #
 class Offsets:
 
@@ -119,12 +120,14 @@ class Offsets:
         if commit:
             self._db.commit()
 
-    def get_last_processed_offset(self,  partition):
+    def rewind_offset(self,  partition):
         cursor = self._db.cursor()
         cursor.execute("SELECT part, offset FROM offsets where part = %d" % partition)
         rows = cursor.fetchall()
         cursor.close()
-        return rows[0][1]        
+        offset = rows[0][1]        
+        self._offsets[partition] = offset
+        return offset
 
     def remove_partition(self, partition):
         self._offsets.pop(partition, None)
@@ -148,13 +151,12 @@ class ConsumerRebalanceListener(kafka.ConsumerRebalanceListener):
     def on_partitions_assigned(self, assigned):
         print("Partitions %s assigned" % assigned)
         for tp in assigned:
-            offset = self._offsets.get_last_processed_offset(tp.partition)
+            offset = self._offsets.rewind_offset(tp.partition)
             #
             # Note that this will define the offset at which the next
             # poll will start
             #
             self._consumer.seek(tp,offset)
-            self._offsets.seek(tp.partition, offset)
 
 
 def deserialize(data):
@@ -247,9 +249,16 @@ def main():
     consumer.subscribe(TOPIC,listener=listener)
 
     # 
-    # Do initial poll to trigger assignments
+    # Do initial poll to trigger assignments. This should not return any data
     # 
-    consumer.poll(0)
+    if len(consumer.poll(0)) > 0:
+        print("First poll returned data, this should not happen - bailing out")
+        try:
+            consumer.close()
+            db.close()
+        except:
+            pass
+        exit(1)
 
 
 
@@ -277,8 +286,11 @@ def main():
             if run_time.seconds > args.runtime:
                 stop = 1
     except:
-        consumer.close()
-        db.close()
+        try:
+            consumer.close()
+            db.close()
+        except:
+            pass
         exit(1)
     
     print("Processed %d records" % count)
