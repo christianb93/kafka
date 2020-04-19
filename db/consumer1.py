@@ -219,30 +219,34 @@ def main():
     started_at=datetime.datetime.now()
     print("Starting polling loop at", "{:%H:%M:%S}".format(started_at), "- will run for %d seconds" % args.runtime)
     count = 0
-    while not stop:
-        for record in consumer:
-            count=count+1
-            process_record(db, args, record)
+    try:
+        while not stop:
+            for record in consumer:
+                count=count+1
+                process_record(db, args, record)
+                #
+                # Stop if needed, either because the runtime has been exceeded or because
+                # we received a signal
+                #
+                if stop:
+                    break
             #
-            # Stop if needed, either because the runtime has been exceeded or because
-            # we received a signal
+            # Commit batch
             #
-            if stop:
-                break
-        #
-        # Commit batch
-        #
-        if args.verbose:
-            print("Committing offsets") 
-        consumer.commit()
-        #
-        # Check to see whether we should stop
-        #
-        now=datetime.datetime.now()
-        run_time = now - started_at
-        if run_time.seconds > args.runtime:
-            stop = 1
-
+            if args.verbose:
+                print("Committing offsets") 
+            consumer.commit()
+            #
+            # Check to see whether we should stop
+            #
+            now=datetime.datetime.now()
+            run_time = now - started_at
+            if run_time.seconds > args.runtime:
+                stop = 1
+    except:
+        consumer.close()
+        exit(1)
+    
     print("Processed %d records" % count)
     consumer.close()
 
