@@ -46,6 +46,14 @@ def get_args():
                     action="store_true",
                     default=False,
                     help="Wait for additional messages even if we have read all expected messages")    
+    parser.add_argument("--check", 
+                    action="store_true",
+                    default=False,
+                    help="Compare against actual balance")    
+    parser.add_argument("--verbose", 
+                    action="store_true",
+                    default=False,
+                    help="Enable verbose output")    
     args=parser.parse_args()
     return args
 
@@ -127,23 +135,22 @@ def main():
     #
     # Get initial balances
     #
-    print("Connecting to DB to get initial balances")
-    balances = get_balances_from_db(args)
-    print("Initial balances: %s" % balances)
-
+    initial_balances = { 0 : 0, 1 : 100}
+    print("Initial balances: %s" % initial_balances)
+    actual_balances = get_balances_from_db(args)
     #
     # Get number of records we should expect
     #
     expected_record_count = get_highest_sequence_number(args)
     actual_record_count = 0
-    print("Expecting %d records" % expected_record_count)
 
     #
     # Create consumer configuration
     #
     consumer_config=create_consumer_config(args)
-    print("Consumer configuration: ")
-    print(yaml.dump(consumer_config, default_flow_style=False))
+    if args.verbose:
+        print("Consumer configuration: ")
+        print(yaml.dump(consumer_config, default_flow_style=False))
 
     #
     # Create consumer
@@ -171,7 +178,11 @@ def main():
     #
     for tp in consumer.assignment():
         consumer.seek_to_beginning(tp)
-       
+
+    #
+    # Create deep copy of initial balances
+    #
+    balances = {key: value for key, value in initial_balances.items()}
     while not stop:
         #
         # Get next batch of records, waiting up to 500 ms for data
@@ -184,8 +195,9 @@ def main():
                 account = int(record.key.decode('utf-8'))
                 amount = record.value['amount']
                 sequence_no = record.value['sequence_no']
-                print ("Offset %d, partition %d: sequence_no %d, account %d --> amount %d " % 
-                       (record.offset, record.partition, sequence_no, account, amount))
+                if args.verbose:
+                    print ("Offset %d, partition %d: sequence_no %d, account %d --> amount %d " % 
+                           (record.offset, record.partition, sequence_no, account, amount))
                 #
                 # Adjust balances
                 #
@@ -197,7 +209,13 @@ def main():
                     stop = True
 
     print("Expected final balances: %s" % balances)
+    print("Actual balances: %s" % actual_balances)
     consumer.close()
+    if args.check:
+        if actual_balances != balances:
+            print("ERROR: balances do not match")
+            exit(1)
 
 
 main()
+exit(0)
