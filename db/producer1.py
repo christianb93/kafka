@@ -86,6 +86,23 @@ def store_sequence_number(db,cursor, sequence_no):
     cursor.execute("UPDATE sequence_no SET current = %d" % sequence_no)
     db.commit()
 
+def assemble_record(sequence_no):
+    #
+    # Assemble record
+    #  
+    account = random.randint(0,1)
+    amount = random.randint(-5,5)
+
+    record={}
+    record['value']={
+        "amount" : amount,
+        "sequence_no" : sequence_no,
+    }
+    record['key']=bytes("{:d}".format(account), "utf-8")
+    print("Creating record %s" % record)
+    return record
+
+
 def main():
 
     #
@@ -108,27 +125,16 @@ def main():
     db = create_db_connection(args)
 
     #
-    # Send N messages asynchronously
+    # Send messages 
     #
     print("Sending %d messages" % args.messages)
-    started_at=datetime.datetime.now()
-    print("Start time: ", "{:%H:%M:%S:%f}".format(started_at))
     for m in range(args.messages):
         sequence_no, cursor = get_sequence_number(db)
-        print("Got sequence number %d" % sequence_no)
-        #
-        # Assemble arguments for send
-        #  
-        send_args={}
-        send_args['value']={
-            "amount" : random.randint(-5,5)
-        }
-        send_args['key']=bytes("{:d}".format(sequence_no), "utf-8")
-
         #
         # Send message
         #
-        future = producer.send(TOPIC, **send_args)
+        record = assemble_record(sequence_no)
+        future = producer.send(TOPIC, **record)
         try:
             future.get(timeout=5)
         except kafka.errors.KafkaError:
@@ -142,10 +148,6 @@ def main():
         #
         store_sequence_number(db, cursor,sequence_no)
 
-    ended_at=datetime.datetime.now()
-    print("End time:   ", "{:%H:%M:%S:%f}".format(ended_at))
-    duration = ended_at - started_at 
-    print("Duration:    %d.%d seconds" % (duration.seconds, duration.microseconds))
 
     #
     #  Close producer again
