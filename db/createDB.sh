@@ -6,7 +6,7 @@
 
 
 # Start docker container
-docker run -d --name some-mysql \
+docker run -d --name kafka-mysql \
            --rm \
            -p 3306:3306 \
            -e MYSQL_ROOT_PASSWORD=my-secret-root-pw \
