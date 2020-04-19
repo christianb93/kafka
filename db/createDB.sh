@@ -13,25 +13,38 @@ docker run -d --name kafka-mysql \
            -e MYSQL_USER=kafka \
            -e MYSQL_PASSWORD=my-secret-pw \
             mysql 
+
+#
+# Wait until container is up
+#
+found=0
+while [ "$found" == "0" ]; do
+  found=$(docker ps | grep kafka-mysql | wc -l )
+  sleep 1
+done
  
 # Give the database some time to come up
-mysqladmin --user=root --password=my-secret-root-pw \
+docker exec -it kafka-mysql \
+           mysqladmin --user=root --password=my-secret-root-pw \
            --host='127.0.0.1'  \
             --silent status
  
 while [ $? == 1  ]
 do
   sleep 5
-  mysqladmin --user=root --password=my-secret-root-pw \
+  docker exec -it kafka-mysql \
+             mysqladmin --user=root --password=my-secret-root-pw \
              --host='127.0.0.1'  \
              --silent status
 done
  
 # Create database kafka and grant rights to user kafka
-mysqladmin --user=root \
-           --password=my-secret-root-pw \
-            --host='127.0.0.1'  create kafka
-echo 'grant all on kafka.* to 'kafka';' \
-              | mysql --user=root \
-                      --password=my-secret-root-pw \
-                      --host='127.0.0.1' kafka
+docker exec -it kafka-mysql \
+          mysqladmin --user=root \
+          --password=my-secret-root-pw \
+          --host='127.0.0.1'  create kafka
+docker exec  -it kafka-mysql \
+          mysql --user=root \
+          --password=my-secret-root-pw \
+          --host='127.0.0.1' kafka \
+          -e "grant all on kafka.* to kafka;"
