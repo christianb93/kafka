@@ -1,12 +1,16 @@
-import kafka
-import config
 import signal
 import sys
 import argparse
 import yaml
 import json
 import time
+import datetime
+
+import kafka
 import mysql.connector as dblib
+
+
+import config
 
 
 TOPIC="kafka"
@@ -46,6 +50,14 @@ def get_args():
                     action="store_true",
                     default=False,
                     help="Do not commit any offsets to Kafka")
+    parser.add_argument("--verbose", 
+                    action="store_true",
+                    default=False,
+                    help="Enable verbose output")    
+    parser.add_argument("--runtime",
+                    type=int,
+                    default=10,
+                    help="Number of seconds to run")
     args=parser.parse_args()
     return args
 
@@ -63,6 +75,11 @@ def create_consumer_config(args):
     consumer_config['enable_auto_commit'] = not args.no_commit
     consumer_config['max_poll_records'] = 100
     consumer_config['auto_offset_reset'] = "earliest"
+    #
+    # Make sure that the iterator interface of the consumer
+    # returns at least once every second
+    #
+    consumer_config['consumer_timeout_ms'] = 1000
     return consumer_config
 
 def create_db_connection(args):
@@ -127,6 +144,24 @@ def set_last_consumed(db, sequence_no, partition, commit):
     if commit:
         db.commit()
 
+
+def process_record(db, args, record):
+    account = int(record.key.decode('utf-8'))
+    amount = record.value['amount']
+    sequence_no = record.value['sequence_no']
+    partition = record.partition
+    last_consumed_sequence_no = get_last_consumed_sequence_number(db, partition)
+    if args.verbose:
+        print ("Offset %d, partition %d: sequence_no %d (last consumed: %d), account %d --> amount %d " % 
+                (record.offset, partition, sequence_no, last_consumed_sequence_no,account, amount))
+    if sequence_no > last_consumed_sequence_no:
+        update_balance(db, account, amount, commit=False)
+        set_last_consumed(db, sequence_no, partition, commit=True)
+    else:
+        if args.verbose:
+            print("Ignoring duplicate record!")
+
+
 def main():
     stop=0    
     #
@@ -152,8 +187,9 @@ def main():
     # Create consumer configuration
     #
     consumer_config=create_consumer_config(args)
-    print("Consumer configuration: ")
-    print(yaml.dump(consumer_config, default_flow_style=False))
+    if args.verbose:
+        print("Consumer configuration: ")
+        print(yaml.dump(consumer_config, default_flow_style=False))
 
     #
     # Create consumer
@@ -170,23 +206,28 @@ def main():
     #
     # Start polling loop
     #
+    started_at=datetime.datetime.now()
+    print("Starting polling loop at", "{:%H:%M:%S}".format(started_at), "- will run for %d seconds" % args.runtime)
+    count = 0
     while not stop:
         for record in consumer:
-            account = int(record.key.decode('utf-8'))
-            amount = record.value['amount']
-            sequence_no = record.value['sequence_no']
-            partition = record.partition
-            last_consumed_sequence_no = get_last_consumed_sequence_number(db, partition)
-            print ("Offset %d, partition %d: sequence_no %d (last consumed: %d), account %d --> amount %d " % 
-                    (record.offset, partition, sequence_no, last_consumed_sequence_no,account, amount))
-            if sequence_no > last_consumed_sequence_no:
-                update_balance(db, account, amount, commit=False)
-                set_last_consumed(db, sequence_no, partition, commit=True)
-            else:
-                print("Ignoring duplicate record!")
+            count=count+1
+            process_record(db, args, record)
+            #
+            # Stop if needed, either because the runtime has been exceeded or because
+            # we received a signal
+            #
             if stop:
                 break
+        #
+        # Check to see whether we should stop
+        #
+        now=datetime.datetime.now()
+        run_time = now - started_at
+        if run_time.seconds > args.runtime:
+            stop = 1
 
+    print("Processed %d records" % count)
     consumer.close()
 
 
