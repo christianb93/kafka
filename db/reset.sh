@@ -6,11 +6,11 @@
 kafka/bin/kafka-topics.sh \
   -bootstrap-server=$(python/getBrokerURL.py) \
   --command-config=.state/client_ssl_config.properties \
-  --topic kafka --delete
+  --topic transactions --delete
 kafka/bin/kafka-topics.sh \
   -bootstrap-server=$(python/getBrokerURL.py) \
   --command-config=.state/client_ssl_config.properties \
-  --topic kafka \
+  --topic transactions \
   --create \
   --replication-factor 3 --partitions 2
 python3 db/initDB.py

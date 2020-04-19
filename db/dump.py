@@ -9,7 +9,7 @@ import time
 import mysql.connector as dblib
 import logging
 
-TOPIC="kafka"
+TOPIC="transactions"
 GROUP_ID="dump"
 
 

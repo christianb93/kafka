@@ -14,7 +14,7 @@ import mysql.connector as dblib
 import config
 
 
-TOPIC="kafka"
+TOPIC="transactions"
 GROUP_ID="kafka_consumer"
 
 

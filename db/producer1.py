@@ -9,7 +9,7 @@ import random
 import mysql.connector as dblib
 
 
-TOPIC="kafka"
+TOPIC="transactions"
 
 # 
 # Get arguments
