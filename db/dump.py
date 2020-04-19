@@ -7,7 +7,7 @@ import yaml
 import json
 import time
 import mysql.connector as dblib
-
+import logging
 
 TOPIC="kafka"
 GROUP_ID="dump"
@@ -38,6 +38,14 @@ def get_args():
                     type=str,
                     default="my-secret-pw",
                     help="Database password")
+    parser.add_argument("--debug", 
+                    action="store_true",
+                    default=False,
+                    help="Turn on debugging messages")
+    parser.add_argument("--wait", 
+                    action="store_true",
+                    default=False,
+                    help="Wait for additional messages even if we have read all expected messages")    
     args=parser.parse_args()
     return args
 
@@ -84,6 +92,14 @@ def get_balances_from_db(args):
     db.close()
     return balances
 
+def get_highest_sequence_number(args):
+    db = create_db_connection(args)
+    cursor = db.cursor()
+    cursor.execute("SELECT last_used FROM sequence_no;")
+    rows = cursor.fetchall()
+    cursor.close()
+    db.close()
+    return rows[0][0]
 
 def main():
     stop=0    
@@ -91,6 +107,8 @@ def main():
     # Parse arguments
     #
     args=get_args()
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG)
 
     #
     # Install signal handler. We should not try to close the consumer
@@ -113,6 +131,12 @@ def main():
     balances = get_balances_from_db(args)
     print("Initial balances: %s" % balances)
 
+    #
+    # Get number of records we should expect
+    #
+    expected_record_count = get_highest_sequence_number(args)
+    actual_record_count = 0
+    print("Expecting %d records" % expected_record_count)
 
     #
     # Create consumer configuration
@@ -156,6 +180,7 @@ def main():
         for tp in batch:
             records = batch[tp]
             for record in records:
+                actual_record_count = actual_record_count + 1
                 account = int(record.key.decode('utf-8'))
                 amount = record.value['amount']
                 sequence_no = record.value['sequence_no']
@@ -165,6 +190,11 @@ def main():
                 # Adjust balances
                 #
                 balances[account] = balances[account] + amount
+                #
+                # Check whether we have received all messages
+                #
+                if not args.wait and (actual_record_count == expected_record_count):
+                    stop = True
 
     print("Expected final balances: %s" % balances)
     consumer.close()
