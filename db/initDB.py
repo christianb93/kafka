@@ -70,6 +70,7 @@ def init_db(db_user, db_password, db_host, db_port):
     accounts = [(0, 0),
                 (1, 100)]
     consumed = [(0,0), (1,0)]
+    offsets = [(0,0), (1,0)]
 
     # 
     # Be careful - MySQL uses %s as parameter markes, while SQLLite3
@@ -86,6 +87,11 @@ def init_db(db_user, db_password, db_host, db_port):
                         (part, last)
                     VALUES (%s, %s)'''
     cursor.executemany(sqlString, consumed)
+    sqlString =  '''INSERT INTO offsets
+                        (part, offset)
+                    VALUES (%s, %s)'''
+    cursor.executemany(sqlString, offsets)
+
 
 
     # and commit
