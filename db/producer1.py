@@ -76,14 +76,14 @@ def create_db_connection(args):
 
 def get_sequence_number(db):
     cursor = db.cursor()
-    cursor.execute("SELECT current FROM sequence_no;")
+    cursor.execute("SELECT last_used FROM sequence_no;")
     rows = cursor.fetchall()
     if len(rows) != 1:
         raise Exception("Expected exactly one row")
     return rows[0][0]+1, cursor
     
 def store_sequence_number(db,cursor, sequence_no):
-    cursor.execute("UPDATE sequence_no SET current = %d" % sequence_no)
+    cursor.execute("UPDATE sequence_no SET last_used = %d" % sequence_no)
     db.commit()
 
 def assemble_record(sequence_no):

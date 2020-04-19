@@ -67,7 +67,7 @@ def init_db(db_user, db_password, db_host, db_port):
     cursor.execute('''CREATE TABLE accounts
                 (id INT, balance INT)''')
     cursor.execute('''CREATE TABLE sequence_no
-                (current INT)''')
+                (last_used INT)''')
 
     # 
     # Insert a few records
@@ -83,7 +83,7 @@ def init_db(db_user, db_password, db_host, db_port):
                     VALUES (%s,%s)'''
     cursor.executemany(sqlString, accounts)
     sqlString =  '''INSERT INTO sequence_no
-                        (current)
+                        (last_used)
                     VALUES (0)'''
     cursor.execute(sqlString)
 
