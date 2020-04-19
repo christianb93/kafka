@@ -46,18 +46,11 @@ def init_db(db_user, db_password, db_host, db_port):
     # Now create all tablesWe first try to drop the tables
     # if it exists
     #
-    try:
-        cursor.execute('''DROP TABLE accounts''')
-    except dblib.Error as err:
-        pass
-    try:
-        cursor.execute('''DROP TABLE offsets''')
-    except dblib.Error as err:
-        pass
-    try:
-        cursor.execute('''DROP TABLE sequence_no''')
-    except dblib.Error as err:
-        pass
+    for table in ['accounts', 'offsets', 'sequence_no', 'consumed']:
+        try:
+            cursor.execute('''DROP TABLE %s''' % table)
+        except dblib.Error as err:
+            pass
 
     #
     # Note that partition is a reserved name in MySQL
@@ -68,12 +61,15 @@ def init_db(db_user, db_password, db_host, db_port):
                 (id INT, balance INT)''')
     cursor.execute('''CREATE TABLE sequence_no
                 (last_used INT)''')
+    cursor.execute('''CREATE TABLE consumed
+                (part INT, last INT)''')
 
     # 
     # Insert a few records
     # 
     accounts = [(0, 0),
                 (1, 100)]
+    consumed = [(0,0), (1,0)]
 
     # 
     # Be careful - MySQL uses %s as parameter markes, while SQLLite3
@@ -86,6 +82,10 @@ def init_db(db_user, db_password, db_host, db_port):
                         (last_used)
                     VALUES (0)'''
     cursor.execute(sqlString)
+    sqlString =  '''INSERT INTO consumed
+                        (part, last)
+                    VALUES (%s, %s)'''
+    cursor.executemany(sqlString, consumed)
 
 
     # and commit
