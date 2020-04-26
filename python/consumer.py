@@ -23,13 +23,6 @@ class MyConsumerRebalanceListener(kafka.ConsumerRebalanceListener):
 
     def on_partitions_assigned(self, assigned):
         print("Partitions %s assigned" % assigned)
-        #
-        # In case the reset flag is set, it is tempting to do the seek
-        # here. However, I have found that calling seek_to_beginning() on the
-        # consumer here does actually never return. I assume that this is due to
-        # some consumer methods not being reentrant, so we leave this to the 
-        # main thread
-        #
 
 # 
 # Get arguments
@@ -138,18 +131,11 @@ def main():
 
 
     #
-    # Do initial poll to trigger reassignment. This should not return any
-    # data
-    #
-
-    if len(consumer.poll(0)) > 0:
-        raise Exception("Did not expect any data from first call to poll!")
-
-    #
-    # If we have requested a reset only, commit 
+    # If we have requested a reset only, poll once to trigger assignments, then commit 
     # the new offsets and exit immediately
     #
     if args.reset:
+        consumer.poll(0)
         for tp in consumer.assignment():
             consumer.seek_to_beginning(tp)
             #
@@ -162,9 +148,6 @@ def main():
         consumer.close(autocommit=False)
         exit(0)
         
-
-    print("Currently assigned partitions: %s" % consumer.assignment())
-    print_partitions(consumer)
 
 
     print("Starting polling loop")
