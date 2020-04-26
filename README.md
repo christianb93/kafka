@@ -143,7 +143,13 @@ To be able to use the Python Kafka client, you will have to install the required
 pip3 install kafka-python
 ```
 
-on your lab PC. Now you should be able to run the scripts in the python subdirectory. To simply create 10 messages for the test topic that we have created above, run (from the root of the repository)
+on your lab PC. For these notes, I have used version 2.0.1, so in case you want to use the exact same version, replace this by
+
+```
+pip3 install kafka-python==2.0.1
+```
+
+You can check which version you have by running `cat ~/.local/lib/python3*/site-packages/kafka/version.py`. Now you should be able to run the scripts in the python subdirectory. To simply create 10 messages for the test topic that we have created above, run (from the root of the repository)
 
 ```
 python3 python/producer.py
