@@ -202,7 +202,8 @@ def main():
         print(yaml.dump(consumer_config, default_flow_style=False))
 
     #
-    # Create consumer
+    # Create consumer. We pass the topic here, so that an explicit subscription
+    # is not needed any more.
     #
     consumer = kafka.KafkaConsumer(TOPIC,
                          group_id=GROUP_ID,      
