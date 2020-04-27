@@ -222,29 +222,34 @@ def main():
     count = 0
     try:
         while not stop:
-            for record in consumer:
-                count=count+1
-                process_record(db, args, record)
-                #
-                # Stop if needed, either because the runtime has been exceeded or because
-                # we received a signal
-                #
-                if stop:
-                    break
             #
-            # Commit batch
+            # Get next batch of records
             #
-            if args.verbose:
-                print("Committing offsets") 
-            consumer.commit()
+            batch = consumer.poll(500)
+            #
+            # Go through batch
+            #
+            for tp in batch:
+                for record in batch[tp]:
+                    count=count+1
+                    process_record(db, args, record)
+                    #
+                    # Stop if needed, either because the runtime has been exceeded or because
+                    # we received a signal
+                    #
+                    if args.verbose:
+                        print("Stop flag: %d" % stop)
+                    if stop:
+                        break
             #
             # Check to see whether we should stop
             #
-            now=datetime.datetime.now()
-            run_time = now - started_at
+            run_time = datetime.datetime.now() - started_at
             if run_time.seconds > args.runtime:
-                stop = 1
+                print("Runtime exceeded, stopping")
+                stop = 1    
     except:
+        print("Received exception %s" % sys.exc_info())
         consumer.close()
         exit(1)
     
