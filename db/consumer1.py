@@ -249,7 +249,6 @@ def main():
                 print("Runtime exceeded, stopping")
                 stop = 1    
     except:
-        print("Received exception %s" % sys.exc_info())
         consumer.close()
         exit(1)
     
