@@ -203,6 +203,10 @@ def process_record(db, args, record, offsets):
     #
     update_balance(db, account, amount, commit=False)
     offsets.seek(record.partition, record.offset+1)
+    if args.error_probability > 0:
+        if random.random() < args.error_probability:
+            print("Simulating error")
+            raise Exception("Simulated error after committing to database")
     offsets.store_offsets(record.partition, commit=True)
 
     
