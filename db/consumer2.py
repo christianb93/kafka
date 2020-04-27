@@ -77,7 +77,6 @@ def create_consumer_config(args):
     consumer_config['value_deserializer'] = deserialize
     consumer_config['consumer_timeout_ms'] = 1000
     consumer_config['enable_auto_commit'] = False
-    consumer_config['max_poll_records'] = 5
     consumer_config['auto_offset_reset'] = "earliest"
     #
     # Make sure that the iterator interface of the consumer
@@ -150,14 +149,23 @@ class ConsumerRebalanceListener(kafka.ConsumerRebalanceListener):
 
     def on_partitions_assigned(self, assigned):
         print("Partitions %s assigned" % assigned)
-        for tp in assigned:
-            offset = self._offsets.rewind_offset(tp.partition)
-            #
-            # Note that this will define the offset at which the next
-            # poll will start
-            #
-            self._consumer.seek(tp,offset)
-
+        #
+        # This is called from _on_join_complete (see 
+        # https://github.com/dpkp/kafka-python/blob/f9e0264e0b0f8d92afb6177d51976795e3bdbcd8/kafka/coordinator/consumer.py#L246) 
+        # where exceptions are logged and then swallowed. So make sure that we detect exceptions
+        #
+        try:
+            for tp in assigned:
+                offset = self._offsets.rewind_offset(tp.partition)
+                #
+                # Note that this will define the offset at which the next
+                # poll will start
+                #
+                self._consumer.seek(tp,offset)
+        except:
+            print("Received exception %s" % sys.exc_info())
+            raise
+        
 
 def deserialize(data):
     return json.loads(data.decode('utf-8'))
@@ -214,7 +222,7 @@ def main():
     def handle_signal(signal, frame):
         #
         # Need nonlocal as we want to change the value of stop
-        #
+        #   
         nonlocal stop
         stop=1
 
@@ -248,19 +256,6 @@ def main():
     listener = ConsumerRebalanceListener(consumer, offsets)
     consumer.subscribe(TOPIC,listener=listener)
 
-    # 
-    # Do initial poll to trigger assignments. This should not return any data
-    # 
-    if len(consumer.poll(0)) > 0:
-        print("First poll returned data, this should not happen - bailing out")
-        try:
-            consumer.close()
-            db.close()
-        except:
-            pass
-        exit(1)
-
-
 
     #
     # Start polling loop
@@ -270,20 +265,31 @@ def main():
     count = 0
     try:
         while not stop:
-            for record in consumer:
-                count=count+1
-                process_record(db, args, record, offsets)
-                #
-                # Stop if needed, either because the runtime has been exceeded or because
-                # we received a signal
-                #
-                if stop:
-                    break
+            #
+            # Get next batch of records
+            #
+            batch = consumer.poll(500)
+            #
+            # Go through batch
+            #
+            for tp in batch:
+                for record in batch[tp]:
+                    count=count+1
+                    process_record(db, args, record, offsets)
+                    #
+                    # Stop if needed, either because the runtime has been exceeded or because
+                    # we received a signal
+                    #
+                    if args.verbose:
+                        print("Stop flag: %d" % stop)
+                    if stop:
+                        break
             #
             # Check to see whether we should stop
             #
             run_time = datetime.datetime.now() - started_at
             if run_time.seconds > args.runtime:
+                print("Runtime exceeded, stopping")
                 stop = 1
     except:
         try:
